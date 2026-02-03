@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -23,10 +24,10 @@ class MqttListenerRegistryTest {
     }
 
     @Test
-    void registerAddsEndpointToCorrectTopic() {
+    void registerAddsEndpointToRegistry() {
         // given
         MqttListenerEndpoint endpoint = mock(MqttListenerEndpoint.class);
-        when(endpoint.getTopics()).thenReturn(List.of("topic1"));
+        when(endpoint.getId()).thenReturn("test-id");
 
         // when
         sut.register(endpoint);
@@ -37,12 +38,12 @@ class MqttListenerRegistryTest {
     }
 
     @Test
-    void registerHandlesMultipleEndpointsForSameTopic() {
+    void registerHandlesMultipleEndpoints() {
         // given
         MqttListenerEndpoint endpoint1 = mock(MqttListenerEndpoint.class);
         MqttListenerEndpoint endpoint2 = mock(MqttListenerEndpoint.class);
-        when(endpoint1.getTopics()).thenReturn(List.of("topic1"));
-        when(endpoint2.getTopics()).thenReturn(List.of("topic1"));
+        when(endpoint1.getId()).thenReturn("id1");
+        when(endpoint2.getId()).thenReturn("id2");
 
         // when
         sut.register(endpoint1);
@@ -54,17 +55,27 @@ class MqttListenerRegistryTest {
     }
 
     @Test
-    void registerHandlesEndpointsWithMultipleTopics() {
+    void getEndpointByIdReturnsEndpoint() {
         // given
         MqttListenerEndpoint endpoint = mock(MqttListenerEndpoint.class);
-        when(endpoint.getTopics()).thenReturn(List.of("topic1", "topic2"));
-
-        // when
+        when(endpoint.getId()).thenReturn("my-id");
         sut.register(endpoint);
 
+        // when
+        Optional<MqttListenerEndpoint> result = sut.getEndpointById("my-id");
+
         // then
-        assertEquals(2, sut.getAllEndpoints().size());
-        assertTrue(sut.getAllEndpoints().contains(endpoint));
+        assertTrue(result.isPresent());
+        assertEquals(endpoint, result.get());
+    }
+
+    @Test
+    void getEndpointByIdReturnsEmptyForUnknownId() {
+        // when
+        Optional<MqttListenerEndpoint> result = sut.getEndpointById("unknown-id");
+
+        // then
+        assertTrue(result.isEmpty());
     }
 
     @Test
@@ -76,4 +87,19 @@ class MqttListenerRegistryTest {
         assertTrue(endpoints.isEmpty());
     }
 
+    @Test
+    void sizeReturnsCorrectCount() {
+        // given
+        MqttListenerEndpoint endpoint1 = mock(MqttListenerEndpoint.class);
+        MqttListenerEndpoint endpoint2 = mock(MqttListenerEndpoint.class);
+        when(endpoint1.getId()).thenReturn("id1");
+        when(endpoint2.getId()).thenReturn("id2");
+
+        // when
+        sut.register(endpoint1);
+        sut.register(endpoint2);
+
+        // then
+        assertEquals(2, sut.size());
+    }
 }

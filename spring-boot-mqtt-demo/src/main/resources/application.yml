@@ -1,5 +1,0 @@
-mqtt:
-  url: tcp://localhost:1883
-  client-id: my-app
-  username: test
-  password: test123

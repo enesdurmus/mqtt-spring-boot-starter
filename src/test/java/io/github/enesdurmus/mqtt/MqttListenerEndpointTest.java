@@ -67,7 +67,7 @@ class MqttListenerEndpointTest {
     }
 
     @Test
-    void invokeThrowsIllegalStateExceptionWhenConverterFails() throws Exception {
+    void invokeThrowsExceptionWhenConverterFails() throws Exception {
         // given
         Method method = TestBean.class.getDeclaredMethod("handleConvertedMessage", Integer.class);
         TestBean bean = new TestBean();
@@ -78,7 +78,7 @@ class MqttListenerEndpointTest {
         MqttMessage message = new MqttMessage("invalid".getBytes());
 
         // when / then
-        assertThrows(IllegalStateException.class, () -> endpoint.invoke("topic1", "invalid", message));
+        assertThrows(MqttListenerInvocationException.class, () -> endpoint.invoke("topic1", "invalid", message));
     }
 
     @Test

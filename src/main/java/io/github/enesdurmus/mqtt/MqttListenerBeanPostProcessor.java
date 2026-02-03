@@ -2,6 +2,7 @@ package io.github.enesdurmus.mqtt;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.BeanFactoryAware;
@@ -12,6 +13,8 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
+import org.springframework.core.annotation.AnnotatedElementUtils;
+import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
@@ -45,12 +48,16 @@ class MqttListenerBeanPostProcessor implements BeanPostProcessor, SmartInitializ
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
-        for (Method method : bean.getClass().getDeclaredMethods()) {
-            if (method.isAnnotationPresent(MqttListener.class)) {
-                MqttListener annotation = method.getAnnotation(MqttListener.class);
+        // Use target class to find annotations on proxied beans (e.g., @Transactional)
+        Class<?> targetClass = AopUtils.getTargetClass(bean);
+
+        ReflectionUtils.doWithMethods(targetClass, method -> {
+            MqttListener annotation = AnnotatedElementUtils.findMergedAnnotation(method, MqttListener.class);
+            if (annotation != null) {
                 registerEndpoint(beanName, method, annotation);
             }
-        }
+        }, method -> !method.isBridge() && !method.isSynthetic());
+
         return bean;
     }
 

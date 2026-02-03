@@ -1,8 +1,10 @@
 package io.github.enesdurmus.mqtt;
 
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.springframework.util.ReflectionUtils;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
@@ -45,6 +47,8 @@ class MqttListenerEndpoint {
 
     /**
      * Invoke the listener method with the given message.
+     * This method properly invokes through the Spring proxy to support
+     * AOP annotations like @Transactional, @Cacheable, @Async, etc.
      *
      * @param topic   the topic the message was received from
      * @param payload the message payload as string
@@ -53,9 +57,25 @@ class MqttListenerEndpoint {
     public void invoke(String topic, String payload, MqttMessage message) {
         try {
             Object[] args = resolveArguments(topic, payload, message);
+            ReflectionUtils.makeAccessible(method);
             method.invoke(getBeanProxy(), args);
+        } catch (InvocationTargetException e) {
+            // Unwrap the actual exception thrown by the listener method
+            Throwable cause = e.getCause();
+            if (cause instanceof RuntimeException re) {
+                throw re;
+            }
+            if (cause instanceof Error err) {
+                throw err;
+            }
+            throw new MqttListenerInvocationException(
+                    "Listener method threw checked exception: " + method, cause);
+        } catch (IllegalAccessException e) {
+            throw new MqttListenerInvocationException(
+                    "Could not access listener method: " + method, e);
         } catch (Exception e) {
-            throw new IllegalStateException("Failed to invoke method: " + method, e);
+            throw new MqttListenerInvocationException(
+                    "Failed to invoke listener method: " + method, e);
         }
     }
 

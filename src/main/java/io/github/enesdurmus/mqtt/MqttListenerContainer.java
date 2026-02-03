@@ -7,9 +7,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Container that manages MQTT listener lifecycle, subscribing to topics
@@ -25,7 +25,7 @@ class MqttListenerContainer implements SmartLifecycle {
     private final MqttListenerErrorHandler defaultErrorHandler;
 
     private volatile boolean running = false;
-    private final Set<String> subscribedTopics = new HashSet<>();
+    private final Set<String> subscribedTopics = ConcurrentHashMap.newKeySet();
 
     MqttListenerContainer(MqttClient mqttClient,
                           MqttListenerRegistry registry,

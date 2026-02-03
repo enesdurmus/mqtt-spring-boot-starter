@@ -1,7 +1,6 @@
 package io.github.enesdurmus.mqtt;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,7 +13,6 @@ import java.util.concurrent.ConcurrentHashMap;
 class MqttListenerRegistry {
 
     private final Map<String, MqttListenerEndpoint> endpointsById = new ConcurrentHashMap<>();
-    private final List<MqttListenerEndpoint> endpoints = Collections.synchronizedList(new ArrayList<>());
 
     /**
      * Register a listener endpoint.
@@ -23,7 +21,6 @@ class MqttListenerRegistry {
      */
     void register(MqttListenerEndpoint endpoint) {
         endpointsById.put(endpoint.getId(), endpoint);
-        endpoints.add(endpoint);
     }
 
     /**
@@ -32,7 +29,7 @@ class MqttListenerRegistry {
      * @return unmodifiable list of all endpoints
      */
     public List<MqttListenerEndpoint> getAllEndpoints() {
-        return Collections.unmodifiableList(new ArrayList<>(endpoints));
+        return new ArrayList<>(endpointsById.values());
     }
 
     /**
@@ -51,6 +48,6 @@ class MqttListenerRegistry {
      * @return the endpoint count
      */
     public int size() {
-        return endpoints.size();
+        return endpointsById.size();
     }
 }

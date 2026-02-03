@@ -59,7 +59,11 @@ class MqttConfig {
         executor.setMaxPoolSize(mqttProperties.getConcurrency() * 2);
         executor.setQueueCapacity(mqttProperties.getQueueCapacity());
         executor.setThreadNamePrefix("mqtt-listener-");
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        // Use AbortPolicy to avoid blocking the MQTT client thread (CallerRunsPolicy can cause deadlocks)
+        executor.setRejectedExecutionHandler((runnable, pool) -> {
+            log.error("MQTT listener executor rejected task - queue is full. " +
+                    "Consider increasing mqtt.queue-capacity or mqtt.concurrency");
+        });
         executor.setWaitForTasksToCompleteOnShutdown(true);
         executor.setAwaitTerminationSeconds(30);
         executor.initialize();

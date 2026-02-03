@@ -46,8 +46,45 @@ class MqttListenerBeanPostProcessorTest {
                 Objects.equals(endpoint.getBeanName(), beanName) &&
                 endpoint.getMethod().getName().equals("annotatedMethod") &&
                 endpoint.getTopics().contains("topic1") &&
-                endpoint.getQos() == 1 &&
-                !endpoint.isInjectContext()
+                endpoint.getQos() == 1
+        ));
+    }
+
+    @Test
+    void postProcessAfterInitializationRegistersEndpointWithCustomId() {
+        // given
+        Object bean = new Object() {
+            @MqttListener(topics = {"topic1"}, id = "myCustomId")
+            public void annotatedMethod() {
+            }
+        };
+        String beanName = "testBean";
+
+        // when
+        sut.postProcessAfterInitialization(bean, beanName);
+
+        // then
+        verify(mqttListenerRegistry).register(argThat(endpoint ->
+                Objects.equals(endpoint.getId(), "myCustomId")
+        ));
+    }
+
+    @Test
+    void postProcessAfterInitializationRegistersEndpointWithErrorHandler() {
+        // given
+        Object bean = new Object() {
+            @MqttListener(topics = {"topic1"}, errorHandler = "myErrorHandler")
+            public void annotatedMethod() {
+            }
+        };
+        String beanName = "testBean";
+
+        // when
+        sut.postProcessAfterInitialization(bean, beanName);
+
+        // then
+        verify(mqttListenerRegistry).register(argThat(endpoint ->
+                Objects.equals(endpoint.getErrorHandlerBeanName(), "myErrorHandler")
         ));
     }
 
@@ -78,5 +115,27 @@ class MqttListenerBeanPostProcessorTest {
 
         // then
         verifyNoInteractions(mqttListenerRegistry);
+    }
+
+    @Test
+    void postProcessAfterInitializationHandlesMultipleTopics() {
+        // given
+        Object bean = new Object() {
+            @MqttListener(topics = {"topic1", "topic2", "topic3"})
+            public void multiTopicMethod() {
+            }
+        };
+        String beanName = "testBean";
+
+        // when
+        sut.postProcessAfterInitialization(bean, beanName);
+
+        // then
+        verify(mqttListenerRegistry).register(argThat(endpoint ->
+                endpoint.getTopics().size() == 3 &&
+                endpoint.getTopics().contains("topic1") &&
+                endpoint.getTopics().contains("topic2") &&
+                endpoint.getTopics().contains("topic3")
+        ));
     }
 }

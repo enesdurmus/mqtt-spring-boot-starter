@@ -13,6 +13,8 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -34,11 +36,14 @@ class MqttListenerContainerTest {
     @Mock
     private ThreadPoolTaskExecutor executor;
 
+    @Mock
+    private MqttListenerErrorHandler errorHandler;
+
     private MqttListenerContainer sut;
 
     @BeforeEach
     void setUp() {
-        sut = new MqttListenerContainer(mqttClient, registry, executor);
+        sut = new MqttListenerContainer(mqttClient, registry, executor, errorHandler);
     }
 
     @Test
@@ -48,8 +53,10 @@ class MqttListenerContainerTest {
         MqttListenerEndpoint endpoint2 = mock(MqttListenerEndpoint.class);
         when(endpoint1.getTopics()).thenReturn(List.of("topic1"));
         when(endpoint1.getQos()).thenReturn(0);
+        when(endpoint1.getId()).thenReturn("endpoint1");
         when(endpoint2.getTopics()).thenReturn(List.of("topic2"));
         when(endpoint2.getQos()).thenReturn(2);
+        when(endpoint2.getId()).thenReturn("endpoint2");
         when(registry.getAllEndpoints()).thenReturn(List.of(endpoint1, endpoint2));
 
         // when
@@ -58,6 +65,7 @@ class MqttListenerContainerTest {
         // then
         verify(mqttClient).subscribe(eq("topic1"), eq(0), any());
         verify(mqttClient).subscribe(eq("topic2"), eq(2), any());
+        assertTrue(sut.isRunning());
     }
 
     @Test
@@ -72,6 +80,7 @@ class MqttListenerContainerTest {
 
         // then
         verifyNoInteractions(mqttClient);
+        assertTrue(sut.isRunning());
     }
 
     @Test
@@ -80,6 +89,7 @@ class MqttListenerContainerTest {
         MqttListenerEndpoint endpoint = mock(MqttListenerEndpoint.class);
         when(endpoint.getTopics()).thenReturn(List.of("topic1"));
         when(endpoint.getQos()).thenReturn(1);
+        when(endpoint.getId()).thenReturn("endpoint1");
         when(registry.getAllEndpoints()).thenReturn(List.of(endpoint));
 
         doAnswer(invocation -> {
@@ -94,5 +104,45 @@ class MqttListenerContainerTest {
         assertThrows(RuntimeException.class, () -> sut.start());
     }
 
+    @Test
+    void stopUnsubscribesFromTopics() throws Exception {
+        // given
+        MqttListenerEndpoint endpoint = mock(MqttListenerEndpoint.class);
+        when(endpoint.getTopics()).thenReturn(List.of("topic1"));
+        when(endpoint.getQos()).thenReturn(0);
+        when(endpoint.getId()).thenReturn("endpoint1");
+        when(registry.getAllEndpoints()).thenReturn(List.of(endpoint));
 
+        sut.start();
+        assertTrue(sut.isRunning());
+
+        // when
+        sut.stop();
+
+        // then
+        verify(mqttClient).unsubscribe("topic1");
+        assertFalse(sut.isRunning());
+    }
+
+    @Test
+    void startDoesNothingIfAlreadyRunning() throws Exception {
+        // given
+        when(registry.getAllEndpoints()).thenReturn(Collections.emptyList());
+        sut.start();
+
+        // when
+        sut.start(); // second call
+
+        // then - should not throw and registry should only be called once
+        verify(registry).getAllEndpoints();
+    }
+
+    @Test
+    void stopDoesNothingIfNotRunning() {
+        // when
+        sut.stop();
+
+        // then - should not throw
+        assertFalse(sut.isRunning());
+    }
 }

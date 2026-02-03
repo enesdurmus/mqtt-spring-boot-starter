@@ -1,17 +1,23 @@
 # Spring Boot Starter MQTT
 
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.enesdurmus/spring-boot-starter-mqtt.svg)](https://search.maven.org/artifact/io.github.enesdurmus/spring-boot-starter-mqtt)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-`spring-boot-starter-mqtt` provides auto-configuration for MQTT integration in Spring Boot applications. It simplifies publishing messages and subscribing to topics.
+A Spring Boot starter for MQTT integration with annotation-driven listeners, similar to `@SqsListener` or `@KafkaListener`.
 
 ## Features
 
-- **Annotation-Based Subscription:** Use `@MqttListener` to subscribe to MQTT topics.
-- **Easy Publishing:** Use the `MqttTemplate` bean to publish messages.
-- **Auto-Configuration:** Configure the MQTT connection using `application.properties` or `application.yml`.
-- **JSON Support:** Automatic conversion of JSON payloads to Java objects.
+- **`@MqttListener`** - Annotation-based topic subscription
+- **Programmatic Listeners** - Create listeners dynamically with `MqttListenerContainerFactory`
+- **`@Topic`** - Inject the actual topic name (useful for wildcards)
+- **`@Payload`** - Explicit payload binding
+- **`@Header`** - Access message metadata (QoS, retained, messageId)
+- **`MqttTemplate`** - Easy message publishing
+- **SpEL Support** - Use `${property}` placeholders in topics
+- **Error Handling** - Configurable error handlers per listener
+- **Auto JSON** - Automatic Jackson serialization/deserialization
 
-## Getting Started
+## Installation
 
 ### Maven
 
@@ -19,80 +25,221 @@
 <dependency>
     <groupId>io.github.enesdurmus</groupId>
     <artifactId>spring-boot-starter-mqtt</artifactId>
-    <version>1.0.1</version>  <!-- Check for the latest version -->
+    <version>1.0.2</version>
 </dependency>
+```
+
+### Gradle
+
+```groovy
+implementation 'io.github.enesdurmus:spring-boot-starter-mqtt:1.0.2'
 ```
 
 ## Configuration
 
-Add the following properties to your `application.yml`:
-
 ```yaml
 mqtt:
   url: tcp://localhost:1883
-  client-id: spring-boot-app
-  username: user
-  password: password
+  client-id: my-app
+  username: user          # optional
+  password: secret        # optional
+  clean-session: true
+  keep-alive-interval: 60
+  connection-timeout: 30
+  concurrency: 5
+  queue-capacity: 100
 ```
 
-### All Configuration Parameters
-
-| Property                   | Description                                                                             | Default Value        |
-|----------------------------|-----------------------------------------------------------------------------------------|----------------------|
-| `mqtt.url`                 | The address of the MQTT broker to connect to (e.g., `tcp://localhost:1883`). (Required) | -                    |
-| `mqtt.username`            | Username for broker authentication.                                                     | -                    |
-| `mqtt.password`            | Password for broker authentication.                                                     | -                    |
-| `mqtt.client-id`           | MQTT client ID.                                                                         | `spring-mqtt-client` |
-| `mqtt.clean-session`       | `cleanSession` flag. If `false`, a persistent session is created.                       | `true`               |
-| `mqtt.keep-alive-interval` | Keep-alive interval in seconds.                                                         | `60`                 |
-| `mqtt.connection-timeout`  | Connection timeout in seconds.                                                          | `60`                 |
-| `mqtt.concurrency`         | The number of threads in the thread pool that will process incoming messages.           | `3`                  |
+| Property | Description | Default |
+|----------|-------------|---------|
+| `mqtt.url` | Broker URL (required) | - |
+| `mqtt.client-id` | Client identifier | `spring-mqtt-client` |
+| `mqtt.username` | Authentication username | - |
+| `mqtt.password` | Authentication password | - |
+| `mqtt.clean-session` | Start with clean session | `true` |
+| `mqtt.keep-alive-interval` | Keep-alive in seconds | `60` |
+| `mqtt.connection-timeout` | Connection timeout in seconds | `30` |
+| `mqtt.concurrency` | Thread pool size | `3` |
+| `mqtt.queue-capacity` | Message queue capacity | `100` |
 
 ## Usage
 
-### Subscribing to Topics
+### Annotation-Based Listeners
 
-Use the `@MqttListener` annotation on a method to subscribe to a topic.
+#### Basic Listener
 
 ```java
-import io.github.enesdurmus.mqtt.MqttListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
 @Component
-public class MqttListeners {
+public class SensorListener {
 
-    private static final Logger log = LoggerFactory.getLogger(MqttListeners.class);
-
-    // Listens to the 'sensor/temperature' topic
-    @MqttListener(topics = "sensor/temperature")
-    public void handleTemperatureReading(TemperatureReading reading) {
-        log.info("New temperature reading: {}°C", reading.getTemperature());
+    @MqttListener(topics = "sensor/temperature", qos = 1)
+    public void handleTemperature(TemperatureReading reading) {
+        System.out.println("Temperature: " + reading.value());
     }
+}
+```
 
-    // Listening to a wildcard topic and setting the QoS level
-    @MqttListener(topics = "alerts/#", qos = 1)
-    public void handleAllAlerts(String payload) {
-        log.warn("Received alert: {}", payload);
-    }
+#### Topic Injection (Wildcards)
 
-    public static class TemperatureReading {
-        private double temperature;
-        // Getters and setters
+```java
+@MqttListener(topics = "devices/#")
+public void handleDevice(@Topic String topic, @Payload DeviceEvent event) {
+    System.out.println("Event from " + topic + ": " + event);
+}
+```
+
+#### Header Injection
+
+```java
+@MqttListener(topics = "events/+")
+public void handleEvent(@Payload String payload,
+                        @Header("qos") int qos,
+                        @Header("retained") boolean retained) {
+    System.out.println("QoS: " + qos + ", Retained: " + retained);
+}
+```
+
+#### Raw Bytes
+
+```java
+@MqttListener(topics = "binary/data")
+public void handleBinary(byte[] data) {
+    System.out.println("Received " + data.length + " bytes");
+}
+```
+
+#### Property Placeholders
+
+```java
+@MqttListener(topics = "${mqtt.topics.sensor}")
+public void handleSensor(SensorData data) {
+    // topic resolved from application.yml
+}
+```
+
+### Programmatic Listeners
+
+Use `MqttListenerContainerFactory` when you need dynamic topic subscription at runtime.
+
+#### Basic Programmatic Listener
+
+```java
+@Configuration
+public class MqttConfig {
+
+    @Bean
+    public MqttMessageListenerContainer temperatureListener(MqttListenerContainerFactory factory) {
+        return factory.createContainer("sensor/+/temperature")
+            .id("temperature-listener")
+            .qos(1)
+            .messageHandler((topic, payload, message) -> {
+                System.out.println("Temperature from " + topic + ": " + payload);
+            })
+            .build();
     }
+}
+```
+
+#### Dynamic Topics from Configuration
+
+```java
+@Bean
+public MqttMessageListenerContainer deviceListener(
+        MqttListenerContainerFactory factory,
+        @Value("${device.id}") String deviceId) {
+
+    return factory.createContainer("devices/" + deviceId + "/events")
+        .id("device-" + deviceId)
+        .qos(1)
+        .messageHandler((topic, payload, message) -> {
+            log.info("Device {} event: {}", deviceId, payload);
+        })
+        .errorHandler((topic, msg, ex) -> {
+            log.error("Failed to process event from {}", topic, ex);
+        })
+        .build();
+}
+```
+
+#### Multiple Dynamic Listeners
+
+```java
+@Bean
+public List<MqttMessageListenerContainer> sensorListeners(
+        MqttListenerContainerFactory factory,
+        SensorRepository sensorRepository) {
+
+    return sensorRepository.findAll().stream()
+        .map(sensor -> factory.createContainer("sensors/" + sensor.getId() + "/data")
+            .id("sensor-" + sensor.getId())
+            .qos(sensor.getRequiredQos())
+            .messageHandler((topic, payload, message) -> {
+                processSensorData(sensor, payload);
+            })
+            .build())
+        .toList();
+}
+```
+
+#### Manual Lifecycle Control
+
+```java
+@Bean
+public MqttMessageListenerContainer manualListener(MqttListenerContainerFactory factory) {
+    return factory.createContainer("manual/topic")
+        .autoStartup(false)  // Don't start automatically
+        .messageHandler((topic, payload, message) -> {
+            // handle message
+        })
+        .build();
+}
+
+// Later, start/stop manually:
+@Autowired
+private MqttMessageListenerContainer manualListener;
+
+public void startListening() {
+    manualListener.start();
+}
+
+public void stopListening() {
+    manualListener.stop();
+}
+```
+
+### Error Handling
+
+#### Global Error Handler
+
+```java
+@Bean
+public MqttListenerErrorHandler mqttListenerErrorHandler() {
+    return (topic, message, exception) -> {
+        log.error("Failed processing message from {}", topic, exception);
+        // send to dead letter topic, metrics, alerting, etc.
+    };
+}
+```
+
+#### Per-Listener Error Handler
+
+```java
+@Bean
+public MqttListenerErrorHandler criticalErrorHandler() {
+    return (topic, message, exception) -> {
+        alertingService.sendAlert("Critical MQTT error", exception);
+    };
+}
+
+@MqttListener(topics = "critical/#", errorHandler = "criticalErrorHandler")
+public void handleCritical(CriticalEvent event) {
+    // ...
 }
 ```
 
 ### Publishing Messages
 
-Inject the `MqttTemplate` bean to publish messages.
-
 ```java
-import io.github.enesdurmus.mqtt.MqttTemplate;
-import org.eclipse.paho.client.mqttv3.MqttException;
-import org.springframework.stereotype.Service;
-
 @Service
 public class NotificationService {
 
@@ -102,24 +249,35 @@ public class NotificationService {
         this.mqttTemplate = mqttTemplate;
     }
 
-    public void sendNotification(String topic, String message) {
-        try {
-            mqttTemplate.publish(topic, message);
-        } catch (MqttException e) {
-            log.error("Failed to publish message to topic {}", topic, e);
-        }
+    public void notify(String message) throws MqttException {
+        mqttTemplate.publish("notifications", message);
     }
 
-    public void sendRetainedNotification(String topic, String message) {
-        try {
-            mqttTemplate.publish(topic, message, 1, true);
-        } catch (MqttException e) {
-            log.error("Failed to publish retained message to topic {}", topic, e);
-        }
+    public void notifyWithQos(String message) throws MqttException {
+        mqttTemplate.publish("notifications", message, 2, false);
     }
 }
 ```
 
+## Supported Parameter Types
+
+| Type | Description |
+|------|-------------|
+| `String` | Payload as string |
+| `byte[]` | Raw payload bytes |
+| `MqttMessage` | Full Paho message object |
+| `@Payload T` | Deserialized JSON payload |
+| `@Topic String` | The topic name |
+| `@Header("qos") int` | QoS level (0, 1, 2) |
+| `@Header("retained") boolean` | Retained flag |
+| `@Header("duplicate") boolean` | Duplicate flag |
+| `@Header("messageId") int` | Message ID |
+
+## Requirements
+
+- Java 17+
+- Spring Boot 3.x
+
 ## License
 
-This project is licensed under the Apache 2.0 License.
+Apache License 2.0

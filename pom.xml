@@ -11,13 +11,13 @@
     </parent>
 
     <groupId>io.github.enesdurmus</groupId>
-    <artifactId>spring-boot-starter-mqtt</artifactId>
-    <version>1.0.2</version>
+    <artifactId>mqtt-spring-boot-starter</artifactId>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
 
-    <name>spring-boot-starter-mqtt</name>
+    <name>mqtt-spring-boot-starter</name>
     <description>Spring Boot Starter for MQTT with annotation-driven listeners</description>
-    <url>https://github.com/enesdurmus/spring-boot-starter-mqtt</url>
+    <url>https://github.com/enesdurmus/mqtt-spring-boot-starter</url>
 
     <licenses>
         <license>
@@ -36,9 +36,9 @@
     </developers>
 
     <scm>
-        <connection>scm:git:git://github.com/enesdurmus/spring-boot-starter-mqtt.git</connection>
-        <developerConnection>scm:git:ssh://github.com:enesdurmus/spring-boot-starter-mqtt.git</developerConnection>
-        <url>https://github.com/enesdurmus/spring-boot-starter-mqtt</url>
+        <connection>scm:git:git://github.com/enesdurmus/mqtt-spring-boot-starter.git</connection>
+        <developerConnection>scm:git:ssh://github.com:enesdurmus/mqtt-spring-boot-starter.git</developerConnection>
+        <url>https://github.com/enesdurmus/mqtt-spring-boot-starter</url>
         <tag>HEAD</tag>
     </scm>
 

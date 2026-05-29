@@ -1,6 +1,6 @@
-# Spring Boot Starter MQTT
+# MQTT Spring Boot Starter
 
-[![Maven Central](https://img.shields.io/maven-central/v/io.github.enesdurmus/spring-boot-starter-mqtt.svg)](https://search.maven.org/artifact/io.github.enesdurmus/spring-boot-starter-mqtt)
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.enesdurmus/mqtt-spring-boot-starter.svg)](https://search.maven.org/artifact/io.github.enesdurmus/mqtt-spring-boot-starter)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 A Spring Boot starter for MQTT integration with annotation-driven listeners, similar to `@SqsListener` or `@KafkaListener`.
@@ -24,15 +24,15 @@ A Spring Boot starter for MQTT integration with annotation-driven listeners, sim
 ```xml
 <dependency>
     <groupId>io.github.enesdurmus</groupId>
-    <artifactId>spring-boot-starter-mqtt</artifactId>
-    <version>1.0.2</version>
+    <artifactId>mqtt-spring-boot-starter</artifactId>
+    <version>1.1.0</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'io.github.enesdurmus:spring-boot-starter-mqtt:1.0.2'
+implementation 'io.github.enesdurmus:mqtt-spring-boot-starter:1.1.0'
 ```
 
 ## Configuration

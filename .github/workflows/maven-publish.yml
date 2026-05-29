@@ -30,10 +30,3 @@ jobs:
           MAVEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
           MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
           MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-
-      - name: Deploy Relocation POM to Maven Central
-        run: mvn -P release -f relocation-pom.xml clean deploy
-        env:
-          MAVEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
